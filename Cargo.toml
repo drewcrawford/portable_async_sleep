@@ -1,0 +1,10 @@
+[package]
+name = "portable-async-sleep"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+continue = "0.1.0"
+
+[dev-dependencies]
+test_executors = "0.3.2"
