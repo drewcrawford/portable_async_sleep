@@ -5,7 +5,7 @@ There may be faster implementations, but this is the most portable one.
 */
 
 use std::sync::mpsc::Sender;
-use std::time::Instant;
+use std::time::{Instant};
 
 struct Message {
     instant: std::time::Instant,
@@ -21,32 +21,30 @@ impl Drop for Message {
 }
 
 
-const CHANNEL: std::sync::LazyLock<Sender<Message>> = std::sync::LazyLock::new(|| {
+
+
+static CHANNEL: std::sync::LazyLock<Sender<Message>> = std::sync::LazyLock::new(|| {
     let (sender, receiver) = std::sync::mpsc::channel();
-    let handle = std::thread::spawn(move || {
+    std::thread::spawn(move || {
         let mut messages: Vec<Message> = Vec::new();
         loop {
             let before_wait_now = Instant::now();
+            messages.retain(|e| e.instant > before_wait_now);
             //calculate our timeout
             let timeout = if let Some(next) = messages.first() {
                 next.instant.saturating_duration_since(before_wait_now)
             } else {
-                std::time::Duration::from_secs(1000)
+                std::time::Duration::from_secs(1_000_000)
             };
-            println!("Waiting for {}ms", timeout.as_millis());
             match receiver.recv_timeout(timeout) {
                 Ok(message) => {
-                    println!("Received message");
                     messages.push(message);
                     messages.sort_by(|a, b| a.instant.cmp(&b.instant));
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    println!("Timed out");
-                    let now = Instant::now();
-                    messages.retain(|e| e.instant > now);
+                    continue
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                    println!("Disconnected");
                     break
                 },
             }
@@ -65,5 +63,5 @@ pub async fn async_sleep(duration: std::time::Duration) {
         continuation: Some(cs),
     };
     CHANNEL.send(message).unwrap();
-    cr.await
+    cr.await;
 }
