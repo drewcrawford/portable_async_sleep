@@ -25,7 +25,9 @@ impl Drop for Message {
 
 static CHANNEL: std::sync::LazyLock<Sender<Message>> = std::sync::LazyLock::new(|| {
     let (sender, receiver) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
+    let build = std::thread::Builder::new()
+        .name("portable-async-sleep".to_string())
+        .spawn(move || {
         let mut messages: Vec<Message> = Vec::new();
         loop {
             let before_wait_now = Instant::now();
