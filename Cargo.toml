@@ -1,11 +1,11 @@
 [package]
-name = "portable-async-sleep"
+name = "portable_async_sleep"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-continue = "0.1.0"
+continue = "0.1"
 
 [dev-dependencies]
-test_executors = "0.3.2"
+test_executors = "0.3.3"
 futures = "0.3.31"

@@ -8,6 +8,11 @@ This function implements `async_sleep` in a totally runtime-agnostic way.
 
 mod stdlib;
 
+/**
+A portable async sleep function.
+
+This function implements `async_sleep` in a totally runtime-agnostic way.
+*/
 pub async fn async_sleep(duration: std::time::Duration) {
     stdlib::async_sleep(duration).await;
 }

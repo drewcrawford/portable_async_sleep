@@ -25,7 +25,7 @@ impl Drop for Message {
 
 static CHANNEL: std::sync::LazyLock<Sender<Message>> = std::sync::LazyLock::new(|| {
     let (sender, receiver) = std::sync::mpsc::channel();
-    let build = std::thread::Builder::new()
+    std::thread::Builder::new()
         .name("portable-async-sleep".to_string())
         .spawn(move || {
         let mut messages: Vec<Message> = Vec::new();
@@ -52,7 +52,7 @@ static CHANNEL: std::sync::LazyLock<Sender<Message>> = std::sync::LazyLock::new(
             }
 
         }
-    });
+    }).expect("can't spawn async sleep thread");
     sender
 });
 
