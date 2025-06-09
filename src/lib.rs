@@ -1,4 +1,7 @@
 /*!
+
+![logo](../../../art/logo.png)
+
 A portable async sleep function.
 
 This function implements `async_sleep` in a totally runtime-agnostic way.
