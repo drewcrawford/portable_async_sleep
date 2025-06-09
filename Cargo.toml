@@ -2,6 +2,16 @@
 name = "portable_async_sleep"
 version = "0.1.0"
 edition = "2024"
+authors = ["Drew Crawford <drew@sealedabstract.com>"]
+description = "A portable async sleep function for Rust"
+repository = "https://github.com/drewcrawford/portable_async_sleep"
+homepage = "https://sealedabstract.com/code/portable_async_sleep"
+license = "MIT OR Apache-2.0"
+categories = ["asynchronous", "os","concurrency","date-and-time"]
+keywords = ["async", "sleep", "portable"]
+exclude = [".*"]
+rust-version = "1.85.1"
+
 
 [dependencies]
 continue = "0.1"
