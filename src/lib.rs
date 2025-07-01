@@ -173,7 +173,7 @@ pub async fn async_sleep(duration: std::time::Duration) {
     }
 }
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(test)]
 mod tests {
     use crate::async_sleep;
     use std::pin::Pin;
@@ -208,6 +208,7 @@ mod tests {
         );
     }
 
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
     #[test]
     fn test_join_2() {
         let mut f1 = async_sleep(Duration::from_millis(100));
@@ -238,6 +239,15 @@ mod tests {
         std::thread::sleep(Duration::from_millis(298));
         //poll f3 again
         assert!(test_executors::poll_once(f3.as_mut()).is_ready());
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+    #[test]
+    fn test_future_is_send() {
+        fn assert_send<T: Send>(_: T) {}
+        
+        let future = async_sleep(Duration::from_millis(100));
+        assert_send(future);
     }
 }
 
