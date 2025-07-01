@@ -46,7 +46,11 @@ Using with concurrent tasks:
 
 ```
 use portable_async_sleep::async_sleep;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
 
 # use test_executors::async_test;
 # #[async_test]
@@ -68,7 +72,11 @@ assert!(elapsed < Duration::from_millis(250));
 ```
 */
 
+#[cfg(not(target_arch = "wasm32"))]
 mod stdlib;
+
+#[cfg(target_arch = "wasm32")]
+mod wasm;
 
 /// Asynchronously sleeps for the specified duration.
 ///
@@ -104,7 +112,11 @@ mod stdlib;
 ///
 /// ```
 /// use portable_async_sleep::async_sleep;
-/// use std::time::{Duration, Instant};
+/// use std::time::Duration;
+/// #[cfg(not(target_arch = "wasm32"))]
+/// use std::time::Instant;
+/// #[cfg(target_arch = "wasm32")]
+/// use web_time::Instant;
 ///
 /// # use test_executors::async_test;
 /// # #[async_test]
@@ -124,7 +136,11 @@ mod stdlib;
 ///
 /// ```
 /// use portable_async_sleep::async_sleep;
-/// use std::time::{Duration, Instant};
+/// use std::time::Duration;
+/// #[cfg(not(target_arch = "wasm32"))]
+/// use std::time::Instant;
+/// #[cfg(target_arch = "wasm32")]
+/// use web_time::Instant;
 ///
 /// # use test_executors::async_test;
 /// # #[async_test]
@@ -146,32 +162,40 @@ mod stdlib;
 /// # }
 /// ```
 pub async fn async_sleep(duration: std::time::Duration) {
-    stdlib::async_sleep(duration).await;
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        stdlib::async_sleep(duration).await;
+    }
+    
+    #[cfg(target_arch = "wasm32")]
+    {
+        wasm::async_sleep(duration).await;
+    }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use crate::async_sleep;
     use std::pin::Pin;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
     use test_executors::async_test;
     #[async_test]
     async fn test_async_sleep() {
-        let duration = std::time::Duration::from_millis(500);
-        let now = std::time::Instant::now();
+        let duration = Duration::from_millis(500);
+        let now = Instant::now();
         async_sleep(duration).await;
         let elapsed = now.elapsed();
         assert!(
             elapsed >= duration,
-            "Expected at least 1 second, got {:?}",
+            "Expected at least 500ms, got {:?}",
             elapsed
         );
     }
 
     #[async_test]
     async fn test_join() {
-        let duration = std::time::Duration::from_millis(500);
-        let now = std::time::Instant::now();
+        let duration = Duration::from_millis(500);
+        let now = Instant::now();
         let f1 = async_sleep(duration);
         let f2 = async_sleep(duration);
         futures::join!(f1, f2);
@@ -214,5 +238,38 @@ mod tests {
         std::thread::sleep(Duration::from_millis(298));
         //poll f3 again
         assert!(test_executors::poll_once(f3.as_mut()).is_ready());
+    }
+}
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod wasm_tests {
+    use super::*;
+    use wasm_bindgen_test::*;
+
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    async fn test_wasm_sleep() {
+        let duration = std::time::Duration::from_millis(100);
+        // Just test that it completes without error
+        async_sleep(duration).await;
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_wasm_concurrent_sleeps() {
+        let duration = std::time::Duration::from_millis(50);
+        
+        // Run multiple sleeps concurrently
+        let sleep1 = async_sleep(duration);
+        let sleep2 = async_sleep(duration);
+        let sleep3 = async_sleep(duration);
+        
+        futures::join!(sleep1, sleep2, sleep3);
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_wasm_zero_duration() {
+        // Test that zero duration sleep works
+        async_sleep(std::time::Duration::from_millis(0)).await;
     }
 }
