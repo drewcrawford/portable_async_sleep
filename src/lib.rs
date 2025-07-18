@@ -177,12 +177,21 @@ pub async fn async_sleep(duration: std::time::Duration) {
 mod tests {
     use crate::async_sleep;
     use std::pin::Pin;
-    use std::time::{Duration, Instant};
+    #[cfg(not(target_arch = "wasm32"))]
+    use std::time;
+    #[cfg(target_arch = "wasm32")]
+    use web_time as time;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    use std::thread;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_thread as thread;
+
     use test_executors::async_test;
     #[async_test]
     async fn test_async_sleep() {
-        let duration = Duration::from_millis(500);
-        let now = Instant::now();
+        let duration = time::Duration::from_millis(500);
+        let now = time::Instant::now();
         async_sleep(duration).await;
         let elapsed = now.elapsed();
         assert!(
@@ -194,8 +203,8 @@ mod tests {
 
     #[async_test]
     async fn test_join() {
-        let duration = Duration::from_millis(500);
-        let now = Instant::now();
+        let duration = time::Duration::from_millis(500);
+        let now = time::Instant::now();
         let f1 = async_sleep(duration);
         let f2 = async_sleep(duration);
         futures::join!(f1, f2);
@@ -208,37 +217,66 @@ mod tests {
         );
     }
 
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
-    #[test]
-    fn test_join_2() {
-        let mut f1 = async_sleep(Duration::from_millis(100));
-        let mut f1 = unsafe { Pin::new_unchecked(&mut f1) };
+    #[test_executors::async_test]
+    async fn test_join_2() {
+        //require browser for wasm_thread
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+        //worker thread so we can sleep on wasm32
+        let (c,f) = r#continue::continuation();
+        thread::spawn(move || {
+            let mut f1 = async_sleep(time::Duration::from_millis(100));
+            let mut f1 = unsafe { Pin::new_unchecked(&mut f1) };
 
-        let mut f2 = async_sleep(Duration::from_millis(10));
-        let mut f2 = unsafe { Pin::new_unchecked(&mut f2) };
+            let mut f2 = async_sleep(time::Duration::from_millis(10));
+            let mut f2 = unsafe { Pin::new_unchecked(&mut f2) };
 
-        let mut f3 = async_sleep(Duration::from_millis(400));
-        let mut f3 = unsafe { Pin::new_unchecked(&mut f3) };
+            let mut f3 = async_sleep(time::Duration::from_millis(400));
+            let mut f3 = unsafe { Pin::new_unchecked(&mut f3) };
 
-        //kick off all 3
-        _ = test_executors::poll_once(f1.as_mut());
-        _ = test_executors::poll_once(f2.as_mut());
-        _ = test_executors::poll_once(f3.as_mut());
+            //kick off all 3
+            _ = test_executors::poll_once(f1.as_mut());
+            _ = test_executors::poll_once(f2.as_mut());
+            _ = test_executors::poll_once(f3.as_mut());
 
-        std::thread::sleep(Duration::from_millis(15));
-        //poll f2 again
-        assert!(test_executors::poll_once(f2.as_mut()).is_ready());
-        assert!(test_executors::poll_once(f1.as_mut()).is_pending());
-        assert!(test_executors::poll_once(f3.as_mut()).is_pending());
+            thread::sleep(time::Duration::from_millis(15));
+            //poll f2 again
+            if !test_executors::poll_once(f2.as_mut()).is_ready() {
+                c.send(Err("f2 should be ready after 15ms"));
+                return;
+            }
+            if !test_executors::poll_once(f1.as_mut()).is_pending() {
+                c.send(Err("f1 should still be pending after 15ms"));
+                return;
+            }
+            if !test_executors::poll_once(f3.as_mut()).is_pending() {
+                c.send(Err("f3 should still be pending after 15ms"));
+                return;
+            }
+            std::thread::sleep(time::Duration::from_millis(90));
+            //poll f1 again
+            if !test_executors::poll_once(f1.as_mut()).is_ready() {
+                c.send(Err("f1 should be ready after 100ms"));
+                return;
+            }
+            if !test_executors::poll_once(f3.as_mut()).is_pending() {
+                c.send(Err("f3 should still be pending after 100ms"));
+                return;
+            }
 
-        std::thread::sleep(Duration::from_millis(90));
-        //poll f1 again
-        assert!(test_executors::poll_once(f1.as_mut()).is_ready());
-        assert!(test_executors::poll_once(f3.as_mut()).is_pending());
+            std::thread::sleep(time::Duration::from_millis(298));
+            //poll f3 again
+            if !test_executors::poll_once(f3.as_mut()).is_ready() {
+                c.send(Err("f3 should be ready after 400ms"));
+                return;
+            }
 
-        std::thread::sleep(Duration::from_millis(298));
-        //poll f3 again
-        assert!(test_executors::poll_once(f3.as_mut()).is_ready());
+
+            c.send(Ok(()));
+        });
+        let r = f.await;
+        assert!(r.is_ok(), "Expected all futures to complete successfully, got: {:?}", r);
+
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
@@ -246,7 +284,7 @@ mod tests {
     fn test_future_is_send() {
         fn assert_send<T: Send>(_: T) {}
         
-        let future = async_sleep(Duration::from_millis(100));
+        let future = async_sleep(time::Duration::from_millis(100));
         assert_send(future);
     }
 }

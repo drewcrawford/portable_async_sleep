@@ -8,6 +8,7 @@ to provide async sleep functionality in WebAssembly environments with Send futur
 
 use wasm_bindgen::prelude::*;
 
+
 // Use JavaScript's global setTimeout function which works in both browser and Node.js
 #[wasm_bindgen]
 extern "C" {

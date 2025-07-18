@@ -6,7 +6,8 @@ There may be faster implementations, but this is the most portable one.
 */
 
 use std::sync::mpsc::Sender;
-use std::time::Instant;
+
+pub use std::time;
 
 struct Message {
     instant: std::time::Instant,
@@ -28,7 +29,7 @@ static CHANNEL: std::sync::LazyLock<Sender<Message>> = std::sync::LazyLock::new(
         .spawn(move || {
             let mut messages: Vec<Message> = Vec::new();
             loop {
-                let before_wait_now = Instant::now();
+                let before_wait_now = time::Instant::now();
                 messages.retain(|e| e.instant > before_wait_now);
                 //calculate our timeout
                 let timeout = if let Some(next) = messages.first() {
@@ -60,3 +61,4 @@ pub async fn async_sleep(duration: std::time::Duration) {
     CHANNEL.send(message).unwrap();
     cr.await;
 }
+

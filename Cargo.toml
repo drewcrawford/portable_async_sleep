@@ -26,7 +26,15 @@ js-sys = "0.3"
 wasm-bindgen-test = "0.3"
 web-time = "1.0"
 
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm_thread = "0.3"
+
+
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
 version = "0.3"
 features = ["Window"]
 
+
+[patch.crates-io]
+some_executor = { path = "../some_executor" }
+test_executors = { path = "../test_executors" }
