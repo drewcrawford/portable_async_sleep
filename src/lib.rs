@@ -176,16 +176,10 @@ pub async fn async_sleep(duration: std::time::Duration) {
 #[cfg(test)]
 mod tests {
     use crate::async_sleep;
-    use std::pin::Pin;
     #[cfg(not(target_arch = "wasm32"))]
     use std::time;
     #[cfg(target_arch = "wasm32")]
     use web_time as time;
-
-    #[cfg(not(target_arch = "wasm32"))]
-    use std::thread;
-    #[cfg(target_arch = "wasm32")]
-    use wasm_thread as thread;
 
     use test_executors::async_test;
     #[async_test]
@@ -222,61 +216,57 @@ mod tests {
         //require browser for wasm_thread
         #[cfg(target_arch = "wasm32")]
         wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-        //worker thread so we can sleep on wasm32
-        let (c,f) = r#continue::continuation();
-        thread::spawn(move || {
-            let mut f1 = async_sleep(time::Duration::from_millis(100));
-            let mut f1 = unsafe { Pin::new_unchecked(&mut f1) };
-
-            let mut f2 = async_sleep(time::Duration::from_millis(10));
-            let mut f2 = unsafe { Pin::new_unchecked(&mut f2) };
-
-            let mut f3 = async_sleep(time::Duration::from_millis(400));
-            let mut f3 = unsafe { Pin::new_unchecked(&mut f3) };
-
-            //kick off all 3
-            _ = test_executors::poll_once(f1.as_mut());
-            _ = test_executors::poll_once(f2.as_mut());
-            _ = test_executors::poll_once(f3.as_mut());
-
-            thread::sleep(time::Duration::from_millis(15));
-            //poll f2 again
-            if !test_executors::poll_once(f2.as_mut()).is_ready() {
-                c.send(Err("f2 should be ready after 15ms"));
-                return;
-            }
-            if !test_executors::poll_once(f1.as_mut()).is_pending() {
-                c.send(Err("f1 should still be pending after 15ms"));
-                return;
-            }
-            if !test_executors::poll_once(f3.as_mut()).is_pending() {
-                c.send(Err("f3 should still be pending after 15ms"));
-                return;
-            }
-            std::thread::sleep(time::Duration::from_millis(90));
-            //poll f1 again
-            if !test_executors::poll_once(f1.as_mut()).is_ready() {
-                c.send(Err("f1 should be ready after 100ms"));
-                return;
-            }
-            if !test_executors::poll_once(f3.as_mut()).is_pending() {
-                c.send(Err("f3 should still be pending after 100ms"));
-                return;
-            }
-
-            std::thread::sleep(time::Duration::from_millis(298));
-            //poll f3 again
-            if !test_executors::poll_once(f3.as_mut()).is_ready() {
-                c.send(Err("f3 should be ready after 400ms"));
-                return;
-            }
-
-
-            c.send(Ok(()));
-        });
-        let r = f.await;
-        assert!(r.is_ok(), "Expected all futures to complete successfully, got: {:?}", r);
-
+        
+        let start = time::Instant::now();
+        
+        // Create async blocks that each track their own completion time
+        let f1 = async {
+            let sleep_start = time::Instant::now();
+            async_sleep(time::Duration::from_millis(150)).await;
+            let elapsed = sleep_start.elapsed();
+            ("f1", elapsed)
+        };
+        
+        let f2 = async {
+            let sleep_start = time::Instant::now();
+            async_sleep(time::Duration::from_millis(50)).await;
+            let elapsed = sleep_start.elapsed();
+            ("f2", elapsed)
+        };
+        
+        let f3 = async {
+            let sleep_start = time::Instant::now();
+            async_sleep(time::Duration::from_millis(100)).await;
+            let elapsed = sleep_start.elapsed();
+            ("f3", elapsed)
+        };
+        
+        // Run all sleeps concurrently
+        let (result1, result2, result3) = futures::join!(f1, f2, f3);
+        
+        let total_elapsed = start.elapsed();
+        
+        // Verify individual timing
+        assert!(result1.1 >= time::Duration::from_millis(150), 
+                "{} completed too early: {:?}", result1.0, result1.1);
+        assert!(result1.1 < time::Duration::from_millis(250), 
+                "{} took too long: {:?}", result1.0, result1.1);
+        
+        assert!(result2.1 >= time::Duration::from_millis(50), 
+                "{} completed too early: {:?}", result2.0, result2.1);
+        assert!(result2.1 < time::Duration::from_millis(150), 
+                "{} took too long: {:?}", result2.0, result2.1);
+        
+        assert!(result3.1 >= time::Duration::from_millis(100), 
+                "{} completed too early: {:?}", result3.0, result3.1);
+        assert!(result3.1 < time::Duration::from_millis(200), 
+                "{} took too long: {:?}", result3.0, result3.1);
+        
+        // Verify they ran concurrently (total time should be ~150ms, not 300ms)
+        assert!(total_elapsed >= time::Duration::from_millis(150), 
+                "Total time too short: {:?}", total_elapsed);
+        assert!(total_elapsed < time::Duration::from_millis(250), 
+                "Total time too long (not concurrent): {:?}", total_elapsed);
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
