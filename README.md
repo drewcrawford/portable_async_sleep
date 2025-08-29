@@ -39,11 +39,37 @@ async fn example() {
 }
 ```
 
+Measuring sleep accuracy:
+
+```rust
+use portable_async_sleep::async_sleep;
+use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
+
+async fn accuracy_example() {
+    let duration = Duration::from_millis(100);
+    let start = Instant::now();
+
+    async_sleep(duration).await;
+
+    let elapsed = start.elapsed();
+    assert!(elapsed >= duration);
+    println!("Requested: {:?}, Actual: {:?}", duration, elapsed);
+}
+```
+
 Using with concurrent tasks:
 
 ```rust
 use portable_async_sleep::async_sleep;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
 
 async fn concurrent_example() {
     let start = Instant::now();
@@ -59,6 +85,34 @@ async fn concurrent_example() {
     let elapsed = start.elapsed();
     assert!(elapsed >= Duration::from_millis(200));
     assert!(elapsed < Duration::from_millis(250));
+}
+```
+
+Multiple concurrent sleeps:
+
+```rust
+use portable_async_sleep::async_sleep;
+use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
+
+async fn multiple_concurrent_example() {
+    // Multiple concurrent sleeps complete in parallel, not sequentially
+    let start = Instant::now();
+
+    let futures = vec![
+        async_sleep(Duration::from_millis(100)),
+        async_sleep(Duration::from_millis(100)),
+        async_sleep(Duration::from_millis(100)),
+    ];
+
+    futures::future::join_all(futures).await;
+
+    // Total time should be ~100ms, not 300ms
+    let elapsed = start.elapsed();
+    assert!(elapsed < Duration::from_millis(150));
 }
 ```
 
