@@ -36,5 +36,3 @@ features = ["Window"]
 
 
 [patch.crates-io]
-some_executor = { path = "../some_executor" }
-test_executors = { path = "../test_executors" }
