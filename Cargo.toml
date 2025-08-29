@@ -1,6 +1,6 @@
 [package]
 name = "portable_async_sleep"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Drew Crawford <drew@sealedabstract.com>"]
 description = "A portable async sleep function for Rust"
@@ -16,7 +16,7 @@ rust-version = "1.85.1"
 [dependencies]
 continue = "0.1"
 [dev-dependencies]
-test_executors = "0.3"
+test_executors = "0.3.5"
 futures = "0.3.31"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
