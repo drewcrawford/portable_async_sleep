@@ -166,7 +166,7 @@ pub async fn async_sleep(duration: std::time::Duration) {
     {
         stdlib::async_sleep(duration).await;
     }
-    
+
     #[cfg(target_arch = "wasm32")]
     {
         wasm::async_sleep(duration).await;
@@ -216,9 +216,9 @@ mod tests {
         //require browser for wasm_thread
         #[cfg(target_arch = "wasm32")]
         wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-        
+
         let start = time::Instant::now();
-        
+
         // Create async blocks that each track their own completion time
         let f1 = async {
             let sleep_start = time::Instant::now();
@@ -226,54 +226,84 @@ mod tests {
             let elapsed = sleep_start.elapsed();
             ("f1", elapsed)
         };
-        
+
         let f2 = async {
             let sleep_start = time::Instant::now();
             async_sleep(time::Duration::from_millis(50)).await;
             let elapsed = sleep_start.elapsed();
             ("f2", elapsed)
         };
-        
+
         let f3 = async {
             let sleep_start = time::Instant::now();
             async_sleep(time::Duration::from_millis(100)).await;
             let elapsed = sleep_start.elapsed();
             ("f3", elapsed)
         };
-        
+
         // Run all sleeps concurrently
         let (result1, result2, result3) = futures::join!(f1, f2, f3);
-        
+
         let total_elapsed = start.elapsed();
-        
+
         // Verify individual timing
-        assert!(result1.1 >= time::Duration::from_millis(150), 
-                "{} completed too early: {:?}", result1.0, result1.1);
-        assert!(result1.1 < time::Duration::from_millis(250), 
-                "{} took too long: {:?}", result1.0, result1.1);
-        
-        assert!(result2.1 >= time::Duration::from_millis(50), 
-                "{} completed too early: {:?}", result2.0, result2.1);
-        assert!(result2.1 < time::Duration::from_millis(150), 
-                "{} took too long: {:?}", result2.0, result2.1);
-        
-        assert!(result3.1 >= time::Duration::from_millis(100), 
-                "{} completed too early: {:?}", result3.0, result3.1);
-        assert!(result3.1 < time::Duration::from_millis(200), 
-                "{} took too long: {:?}", result3.0, result3.1);
-        
+        assert!(
+            result1.1 >= time::Duration::from_millis(150),
+            "{} completed too early: {:?}",
+            result1.0,
+            result1.1
+        );
+        assert!(
+            result1.1 < time::Duration::from_millis(250),
+            "{} took too long: {:?}",
+            result1.0,
+            result1.1
+        );
+
+        assert!(
+            result2.1 >= time::Duration::from_millis(50),
+            "{} completed too early: {:?}",
+            result2.0,
+            result2.1
+        );
+        assert!(
+            result2.1 < time::Duration::from_millis(150),
+            "{} took too long: {:?}",
+            result2.0,
+            result2.1
+        );
+
+        assert!(
+            result3.1 >= time::Duration::from_millis(100),
+            "{} completed too early: {:?}",
+            result3.0,
+            result3.1
+        );
+        assert!(
+            result3.1 < time::Duration::from_millis(200),
+            "{} took too long: {:?}",
+            result3.0,
+            result3.1
+        );
+
         // Verify they ran concurrently (total time should be ~150ms, not 300ms)
-        assert!(total_elapsed >= time::Duration::from_millis(150), 
-                "Total time too short: {:?}", total_elapsed);
-        assert!(total_elapsed < time::Duration::from_millis(250), 
-                "Total time too long (not concurrent): {:?}", total_elapsed);
+        assert!(
+            total_elapsed >= time::Duration::from_millis(150),
+            "Total time too short: {:?}",
+            total_elapsed
+        );
+        assert!(
+            total_elapsed < time::Duration::from_millis(250),
+            "Total time too long (not concurrent): {:?}",
+            total_elapsed
+        );
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
     #[test]
     fn test_future_is_send() {
         fn assert_send<T: Send>(_: T) {}
-        
+
         let future = async_sleep(time::Duration::from_millis(100));
         assert_send(future);
     }
@@ -296,12 +326,12 @@ mod wasm_tests {
     #[wasm_bindgen_test]
     async fn test_wasm_concurrent_sleeps() {
         let duration = std::time::Duration::from_millis(50);
-        
+
         // Run multiple sleeps concurrently
         let sleep1 = async_sleep(duration);
         let sleep2 = async_sleep(duration);
         let sleep3 = async_sleep(duration);
-        
+
         futures::join!(sleep1, sleep2, sleep3);
     }
 
