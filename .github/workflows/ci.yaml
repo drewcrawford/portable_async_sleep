@@ -1,4 +1,4 @@
-# matrix v3
+# matrix v12
 on: [push,pull_request]
 env:
   FATAL_WARNINGS_1: "build.rustflags=['-Dwarnings']"
@@ -10,6 +10,8 @@ jobs:
     name: Build (${{ matrix.os }} ${{ matrix.cwd }} ${{ matrix.channel }} ${{ matrix.target }} ${{ matrix.features }})
 
     runs-on: ${{matrix.os}}
+
+    timeout-minutes: 15
 
 
     strategy:
@@ -80,6 +82,12 @@ jobs:
         run: |
           rustup ${{ matrix.channel }} component add rustfmt clippy
           rustup ${{ matrix.channel }} component add rust-src
+
+      # Retained as a template-generation step for projects that use the
+      # shared wasm_lite runner. This crate uses wasm-bindgen-test-runner below.
+      - name: Install wasm_lite runner
+        if: false
+        run: cargo +nightly install wasm_lite_cli
 
       - name: rustfmt
         run: cd ${{ matrix.cwd }} && cargo ${{ matrix.channel }} --config "$FATAL_WARNINGS_1"  --config "$FATAL_WARNINGS_2"  --config "$FATAL_WARNINGS_3" fmt --check

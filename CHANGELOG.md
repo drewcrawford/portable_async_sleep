@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## Unreleased
 
+## 0.1.2 - 2026-08-17
+
 ### Fixed
 
 - Cancelled native sleeps now leave the scheduler promptly instead of holding

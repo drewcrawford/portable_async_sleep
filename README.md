@@ -33,32 +33,10 @@ Basic usage:
 use portable_async_sleep::async_sleep;
 use std::time::Duration;
 
-async fn example() {
-    async_sleep(Duration::from_millis(100)).await;
-    println!("Slept for 100ms!");
-}
-```
-
-Measuring sleep accuracy:
-
-```rust
-use portable_async_sleep::async_sleep;
-use std::time::Duration;
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::Instant;
-#[cfg(target_arch = "wasm32")]
-use web_time::Instant;
-
-async fn accuracy_example() {
-    let duration = Duration::from_millis(100);
-    let start = Instant::now();
-
-    async_sleep(duration).await;
-
-    let elapsed = start.elapsed();
-    assert!(elapsed >= duration);
-    println!("Requested: {:?}, Actual: {:?}", duration, elapsed);
-}
+# futures::executor::block_on(async {
+async_sleep(Duration::from_millis(100)).await;
+println!("Slept for 100ms!");
+# });
 ```
 
 Using with concurrent tasks:
@@ -71,56 +49,19 @@ use std::time::Instant;
 #[cfg(target_arch = "wasm32")]
 use web_time::Instant;
 
-async fn concurrent_example() {
-    let start = Instant::now();
+# futures::executor::block_on(async {
+let start = Instant::now();
 
-    // Start two sleep operations concurrently
-    let sleep1 = async_sleep(Duration::from_millis(100));
-    let sleep2 = async_sleep(Duration::from_millis(200));
+// Start two sleep operations concurrently
+let sleep1 = async_sleep(Duration::from_millis(100));
+let sleep2 = async_sleep(Duration::from_millis(200));
 
-    // Wait for both to complete
-    futures::join!(sleep1, sleep2);
+// Wait for both to complete
+futures::join!(sleep1, sleep2);
 
-    // Total time should be ~200ms, not 300ms
-    let elapsed = start.elapsed();
-    assert!(elapsed >= Duration::from_millis(200));
-    assert!(elapsed < Duration::from_millis(250));
-}
+// Total time should be ~200ms, not 300ms
+let elapsed = start.elapsed();
+assert!(elapsed >= Duration::from_millis(200));
+assert!(elapsed < Duration::from_millis(250));
+# });
 ```
-
-Multiple concurrent sleeps:
-
-```rust
-use portable_async_sleep::async_sleep;
-use std::time::Duration;
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::Instant;
-#[cfg(target_arch = "wasm32")]
-use web_time::Instant;
-
-async fn multiple_concurrent_example() {
-    // Multiple concurrent sleeps complete in parallel, not sequentially
-    let start = Instant::now();
-
-    let futures = vec![
-        async_sleep(Duration::from_millis(100)),
-        async_sleep(Duration::from_millis(100)),
-        async_sleep(Duration::from_millis(100)),
-    ];
-
-    futures::future::join_all(futures).await;
-
-    // Total time should be ~100ms, not 300ms
-    let elapsed = start.elapsed();
-    assert!(elapsed < Duration::from_millis(150));
-}
-```
-
-## License
-
-This project is licensed under either of
-
- * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE.md) or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT license ([LICENSE-MIT](LICENSE-MIT.md) or http://opensource.org/licenses/MIT)
-
-at your option.

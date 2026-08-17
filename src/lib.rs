@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 /*!
 
-![logo](../../../art/logo.png)
+# portable-async-sleep
+
+![logo](https://github.com/drewcrawford/portable_async_sleep/raw/main/art/logo.png)
 
 A portable async sleep function for Rust.
 
@@ -9,14 +11,14 @@ This crate provides a runtime-agnostic implementation of async sleep functionali
 Unlike runtime-specific sleep functions (e.g., `tokio::time::sleep` or `async_std::task::sleep`),
 `portable_async_sleep` works with any async runtime or executor.
 
-# Features
+## Features
 
 - **Runtime-agnostic**: Works with tokio, async-std, smol, or any other async runtime
 - **Lightweight**: Uses standard library primitives with minimal overhead
 - **Thread-safe**: Can be used from multiple async tasks simultaneously
 - **Accurate timing**: Respects the requested sleep duration
 
-# Implementation
+## Implementation
 
 The default implementation uses a dedicated background thread that manages sleep timers using
 standard library channels and timeouts. This approach ensures maximum compatibility across
@@ -26,7 +28,7 @@ While the stdlib-based implementation is the most portable, the crate is designe
 alternative backends in the future that may offer better performance or integration with
 specific runtimes, while still maintaining the same portable API.
 
-# Examples
+## Examples
 
 Basic usage:
 

@@ -1,6 +1,6 @@
 [package]
 name = "portable_async_sleep"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 authors = ["Drew Crawford <drew@sealedabstract.com>"]
 description = "A portable async sleep function for Rust"

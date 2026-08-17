@@ -1,4 +1,3 @@
 portable_async_sleep https://sealedabstract.com/code/portable_async_sleep
 A portable async sleep function for Rust
-Copyright 2025 Drew Crawford.
-
+Copyright 2026 Drew Crawford.

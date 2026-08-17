@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2025 Drew Crawford; https://sealedabstract.com/code/portable_async_sleep
+Copyright (c) 2026 Drew Crawford; https://sealedabstract.com/code/portable_async_sleep
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
