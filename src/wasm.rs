@@ -1,42 +1,83 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-//SPDX-License-Identifier: MIT OR Apache-2.0
 /*!
-WASM implementation using browser's setTimeout API.
+WebAssembly implementation using the host's `setTimeout` API.
 
-This implementation leverages JavaScript's event loop and the continue crate
-to provide async sleep functionality in WebAssembly environments with Send futures.
+Timeout callbacks deallocate themselves after invocation. Long durations are
+split both because JavaScript timers use a signed 32-bit millisecond delay and
+so callbacks from cancelled futures are promptly eligible to run and clean up.
 */
 
+use std::time::Duration;
 use wasm_bindgen::prelude::*;
 
-// Use JavaScript's global setTimeout function which works in both browser and Node.js
+const MAX_TIMEOUT_MILLIS: u128 = 60_000;
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_name = setTimeout)]
-    fn set_timeout(closure: &js_sys::Function, millis: i32);
+    fn set_timeout(callback: &js_sys::Function, millis: i32);
 }
 
-pub async fn async_sleep(duration: std::time::Duration) {
-    let millis = duration.as_millis() as i32;
+fn duration_millis_ceil(duration: Duration) -> u128 {
+    let millis = duration.as_millis();
+    if duration.subsec_nanos() % 1_000_000 == 0 {
+        millis
+    } else {
+        millis + 1
+    }
+}
 
-    // Create a continuation pair for Send-safe async communication
+async fn sleep_millis(millis: i32) {
     let (sender, receiver) = r#continue::continuation();
+    let callback = Closure::once_into_js(move || sender.send(()));
+    set_timeout(callback.unchecked_ref(), millis);
 
-    // Create and immediately use the closure in a scope to ensure it's dropped
-    {
-        // Create a closure that will send the signal when the timeout fires
-        let callback = Closure::once(move || {
-            sender.send(());
-        });
+    // setTimeout now owns the JavaScript reference. Dropping our handle before
+    // awaiting keeps the returned future Send; the one-shot callback releases
+    // its Rust allocation when the host invokes it.
+    drop(callback);
 
-        // Schedule the timeout
-        set_timeout(callback.as_ref().unchecked_ref(), millis);
+    receiver.await;
+}
 
-        // Leak the closure to prevent it from being dropped too early
-        // JavaScript will hold the reference until the timeout fires
-        callback.forget();
+pub async fn async_sleep(duration: Duration) {
+    let mut remaining_millis = duration_millis_ceil(duration);
+
+    while remaining_millis > 0 {
+        let millis = remaining_millis.min(MAX_TIMEOUT_MILLIS);
+        sleep_millis(millis as i32).await;
+        remaining_millis -= millis;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[wasm_bindgen_test]
+    fn sub_millisecond_duration_rounds_up() {
+        assert_eq!(duration_millis_ceil(Duration::from_nanos(1)), 1);
+        assert_eq!(duration_millis_ceil(Duration::from_micros(999)), 1);
+        assert_eq!(duration_millis_ceil(Duration::from_micros(1_001)), 2);
     }
 
-    // Await the receiver - this future is Send
-    receiver.await;
+    #[wasm_bindgen_test]
+    fn long_duration_does_not_wrap_the_timeout() {
+        let millis = duration_millis_ceil(Duration::MAX);
+        let first_timeout = millis.min(MAX_TIMEOUT_MILLIS) as i32;
+
+        assert_eq!(first_timeout, MAX_TIMEOUT_MILLIS as i32);
+        assert!(millis > MAX_TIMEOUT_MILLIS);
+    }
+
+    #[wasm_bindgen_test]
+    async fn cancelled_timeout_callback_is_safe() {
+        let mut sleep = Box::pin(async_sleep(Duration::from_millis(10)));
+        assert!(futures::poll!(sleep.as_mut()).is_pending());
+        drop(sleep);
+
+        // Allow the abandoned callback to run and release its Rust allocation.
+        async_sleep(Duration::from_millis(20)).await;
+    }
 }

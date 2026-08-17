@@ -34,12 +34,10 @@ Basic usage:
 use portable_async_sleep::async_sleep;
 use std::time::Duration;
 
-# use test_executors::async_test;
-# #[async_test]
-# async fn test() {
+# futures::executor::block_on(async {
 async_sleep(Duration::from_millis(100)).await;
 println!("Slept for 100ms!");
-# }
+# });
 ```
 
 Using with concurrent tasks:
@@ -52,9 +50,7 @@ use std::time::Instant;
 #[cfg(target_arch = "wasm32")]
 use web_time::Instant;
 
-# use test_executors::async_test;
-# #[async_test]
-# async fn test() {
+# futures::executor::block_on(async {
 let start = Instant::now();
 
 // Start two sleep operations concurrently
@@ -68,7 +64,7 @@ futures::join!(sleep1, sleep2);
 let elapsed = start.elapsed();
 assert!(elapsed >= Duration::from_millis(200));
 assert!(elapsed < Duration::from_millis(250));
-# }
+# });
 ```
 */
 
@@ -100,12 +96,10 @@ mod wasm;
 /// use portable_async_sleep::async_sleep;
 /// use std::time::Duration;
 ///
-/// # use test_executors::async_test;
-/// # #[async_test]
-/// # async fn test() {
+/// # futures::executor::block_on(async {
 /// // Sleep for 500 milliseconds
 /// async_sleep(Duration::from_millis(500)).await;
-/// # }
+/// # });
 /// ```
 ///
 /// Measuring sleep accuracy:
@@ -118,9 +112,7 @@ mod wasm;
 /// #[cfg(target_arch = "wasm32")]
 /// use web_time::Instant;
 ///
-/// # use test_executors::async_test;
-/// # #[async_test]
-/// # async fn test() {
+/// # futures::executor::block_on(async {
 /// let duration = Duration::from_millis(100);
 /// let start = Instant::now();
 ///
@@ -129,7 +121,7 @@ mod wasm;
 /// let elapsed = start.elapsed();
 /// assert!(elapsed >= duration);
 /// println!("Requested: {:?}, Actual: {:?}", duration, elapsed);
-/// # }
+/// # });
 /// ```
 ///
 /// Concurrent sleeps:
@@ -142,9 +134,7 @@ mod wasm;
 /// #[cfg(target_arch = "wasm32")]
 /// use web_time::Instant;
 ///
-/// # use test_executors::async_test;
-/// # #[async_test]
-/// # async fn test() {
+/// # futures::executor::block_on(async {
 /// // Multiple concurrent sleeps complete in parallel, not sequentially
 /// let start = Instant::now();
 ///
@@ -159,7 +149,7 @@ mod wasm;
 /// // Total time should be ~100ms, not 300ms
 /// let elapsed = start.elapsed();
 /// assert!(elapsed < Duration::from_millis(150));
-/// # }
+/// # });
 /// ```
 pub async fn async_sleep(duration: std::time::Duration) {
     #[cfg(not(target_arch = "wasm32"))]
@@ -181,9 +171,28 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     use web_time as time;
 
-    use test_executors::async_test;
-    #[async_test]
-    async fn test_async_sleep() {
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    macro_rules! async_test {
+        ($name:ident, $body:block) => {
+            #[test]
+            fn $name() {
+                futures::executor::block_on(async $body);
+            }
+        };
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    macro_rules! async_test {
+        ($name:ident, $body:block) => {
+            #[wasm_bindgen_test::wasm_bindgen_test]
+            async fn $name() $body
+        };
+    }
+
+    async_test!(test_async_sleep, {
         let duration = time::Duration::from_millis(500);
         let now = time::Instant::now();
         async_sleep(duration).await;
@@ -193,10 +202,9 @@ mod tests {
             "Expected at least 500ms, got {:?}",
             elapsed
         );
-    }
+    });
 
-    #[async_test]
-    async fn test_join() {
+    async_test!(test_join, {
         let duration = time::Duration::from_millis(500);
         let now = time::Instant::now();
         let f1 = async_sleep(duration);
@@ -209,14 +217,9 @@ mod tests {
             "expected simultaneous sleep, got {:?}",
             elapsed
         );
-    }
+    });
 
-    #[test_executors::async_test]
-    async fn test_join_2() {
-        //require browser for wasm_thread
-        #[cfg(target_arch = "wasm32")]
-        wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-
+    async_test!(test_join_2, {
         let start = time::Instant::now();
 
         // Create async blocks that each track their own completion time
@@ -297,10 +300,10 @@ mod tests {
             "Total time too long (not concurrent): {:?}",
             total_elapsed
         );
-    }
+    });
 
+    #[cfg_attr(not(target_arch = "wasm32"), test)]
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
-    #[test]
     fn test_future_is_send() {
         fn assert_send<T: Send>(_: T) {}
 

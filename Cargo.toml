@@ -9,30 +9,20 @@ homepage = "https://sealedabstract.com/code/portable_async_sleep"
 license = "MIT OR Apache-2.0"
 categories = ["asynchronous", "os","concurrency","date-and-time"]
 keywords = ["async", "sleep", "portable"]
-exclude = [".*"]
+exclude = [".*", "INVESTIGATION.md"]
 rust-version = "1.85.1"
 
 
 [dependencies]
 continue = "0.1"
+
 [dev-dependencies]
-test_executors = "0.3.5"
 futures = "0.3.31"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-js-sys = "0.3"
-wasm-bindgen-test = "0.3"
-web-time = "1.0"
+wasm-bindgen = "0.2.99"
+js-sys = "0.3.76"
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm_thread = "0.3"
-
-
-[target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
-version = "0.3"
-features = ["Window"]
-
-
-[patch.crates-io]
+wasm-bindgen-test = "0.3.49"
+web-time = "1.0"
